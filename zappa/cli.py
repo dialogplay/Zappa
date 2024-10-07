@@ -814,6 +814,7 @@ class ZappaCLI:
                 memory_size=self.memory_size,
                 ephemeral_storage=self.ephemeral_storage,
                 runtime=self.runtime,
+                architecture=self.architecture,
                 aws_environment_variables=self.aws_environment_variables,
                 aws_kms_key_arn=self.aws_kms_key_arn,
                 use_alb=self.use_alb,
@@ -1026,6 +1027,7 @@ class ZappaCLI:
             function_name=self.lambda_name,
             num_revisions=self.num_retained_versions,
             concurrency=self.lambda_concurrency,
+            architecture=self.architecture,
         )
         if docker_image_uri:
             kwargs["docker_image_uri"] = docker_image_uri
@@ -1520,6 +1522,7 @@ class ZappaCLI:
         # https://github.com/Miserlou/Zappa/issues/2188
         status_dict["Lambda Handler"] = conf.get("Handler", "")
         status_dict["Lambda Runtime"] = conf.get("Runtime", "")
+        status_dict["Lambda Architectures"] = conf["Architectures"][0]
         if "VpcConfig" in conf.keys():
             status_dict["Lambda VPC ID"] = conf.get("VpcConfig", {}).get("VpcId", "Not assigned")
         else:
@@ -2298,6 +2301,7 @@ class ZappaCLI:
         self.check_environment(self.environment_variables)
         self.authorizer = self.stage_config.get("authorizer", {})
         self.runtime = self.stage_config.get("runtime", get_runtime_from_python_version())
+        self.architecture = self.stage_config.get("architecture", 'x86_64')
         self.aws_kms_key_arn = self.stage_config.get("aws_kms_key_arn", "")
         self.context_header_mappings = self.stage_config.get("context_header_mappings", {})
         self.xray_tracing = self.stage_config.get("xray_tracing", False)
@@ -2325,6 +2329,7 @@ class ZappaCLI:
             desired_role_name=desired_role_name,
             desired_role_arn=self.desired_role_arn,
             runtime=self.runtime,
+            architecture=self.architecture,
             tags=self.tags,
             endpoint_urls=self.stage_config.get("aws_endpoint_urls", {}),
             xray_tracing=self.xray_tracing,

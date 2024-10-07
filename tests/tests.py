@@ -237,7 +237,20 @@ class TestZappa(unittest.TestCase):
             self.assertTrue(os.path.isfile(path))
             os.remove(path)
 
-    def test_verify_downloaded_manylinux_wheel(self):
+    def test_verify_downloaded_manylinux_wheel_for_x86_64(self):
+        z = Zappa(runtime="python3.10")
+        cached_wheels_dir = os.path.join(tempfile.gettempdir(), "cached_wheels")
+        expected_wheel_path = os.path.join(
+            cached_wheels_dir,
+            "pycryptodome-3.16.0-cp35-abi3-manylinux_2_5_x86_64.manylinux1_x86_64.manylinux_2_12_x86_64.manylinux2010_x86_64.whl",
+        )
+
+        # check with a known manylinux wheel package
+        actual_wheel_path = z.get_cached_manylinux_wheel("pycryptodome", "3.16.0")
+        self.assertEqual(actual_wheel_path, expected_wheel_path)
+        os.remove(actual_wheel_path)
+
+    def test_verify_downloaded_manylinux_wheel_for_arm64(self):
         z = Zappa(runtime="python3.10")
         cached_wheels_dir = os.path.join(tempfile.gettempdir(), "cached_wheels")
         expected_wheel_path = os.path.join(

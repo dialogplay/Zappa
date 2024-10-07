@@ -279,6 +279,7 @@ class Zappa:
         desired_role_name=None,
         desired_role_arn=None,
         runtime="python3.8",  # Detected at runtime in CLI
+        architecture="x86_64",
         tags=(),
         endpoint_urls={},
         xray_tracing=False,
@@ -302,15 +303,16 @@ class Zappa:
             self.credentials_arn = desired_role_arn
 
         self.runtime = runtime
+        self.architecture = architecture
 
         # TODO: Support PEP600 properly (https://peps.python.org/pep-0600/)
+        wheel_arch = 'x86_64' if architecture == 'x86_64' else 'aarch64'
         self.manylinux_suffix_start = f"cp{self.runtime[6:].replace('.', '')}"
         self.manylinux_suffixes = ("_2_24", "2014", "2010", "1")
-        # TODO: Support aarch64 architecture
         self.manylinux_wheel_file_match = re.compile(
-            rf'^.*{self.manylinux_suffix_start}-(manylinux_\d+_\d+_x86_64[.])?manylinux({"|".join(self.manylinux_suffixes)})_x86_64[.]whl$'  # noqa: E501
+            rf'^.*{self.manylinux_suffix_start}-(manylinux_\d+_\d+_{wheel_arch}[.])?manylinux({"|".join(self.manylinux_suffixes)})_{wheel_arch}[.]whl$'  # noqa: E501
         )
-        self.manylinux_wheel_abi3_file_match = re.compile(rf"^.*cp3.-abi3-manylinux.*_x86_64[.]whl$")
+        self.manylinux_wheel_abi3_file_match = re.compile(rf"^.*cp3.-abi3-manylinux.*_{wheel_arch}[.]whl$")
 
         self.endpoint_urls = endpoint_urls
         self.xray_tracing = xray_tracing
@@ -876,7 +878,8 @@ class Zappa:
         else:
             # Check if we already have a cached copy
             wheel_name = re.sub(r"[^\w\d.]+", "_", package_name, re.UNICODE)
-            wheel_file = f"{wheel_name}-{package_version}-*_x86_64.whl"
+            wheel_arch = 'x86_64' if self.architecture == 'x86_64' else 'aarch64'
+            wheel_file = f"{wheel_name}-{package_version}-*_{wheel_arch}.whl"
             wheel_path = os.path.join(cached_wheels_dir, wheel_file)
 
             for pathname in glob.iglob(wheel_path):
@@ -885,7 +888,7 @@ class Zappa:
                     return pathname
                 elif re.match(self.manylinux_wheel_abi3_file_match, pathname):
                     for manylinux_suffix in self.manylinux_suffixes:
-                        if f"manylinux{manylinux_suffix}_x86_64" in pathname:
+                        if f"manylinux{manylinux_suffix}_{wheel_arch}" in pathname:
                             logger.info(f" - {package_name}=={package_version}: Using locally cached manylinux wheel")
                             return pathname
 
@@ -953,8 +956,9 @@ class Zappa:
                 # manylinux caching is not working for packages with capital case in names like MarkupSafe
                 return f["url"], f["filename"].lower()
             elif re.match(self.manylinux_wheel_abi3_file_match, f["filename"]):
+                wheel_arch = 'x86_64' if self.architecture == 'x86_64' else 'aarch64'
                 for manylinux_suffix in self.manylinux_suffixes:
-                    if f"manylinux{manylinux_suffix}_x86_64" in f["filename"]:
+                    if f"manylinux{manylinux_suffix}_{wheel_arch}" in f["filename"]:
                         return f["url"], f["filename"].lower()
         return None, None
 
@@ -1083,6 +1087,7 @@ class Zappa:
         vpc_config=None,
         dead_letter_config=None,
         runtime="python3.8",
+        architecture="x86_64",
         aws_environment_variables=None,
         aws_kms_key_arn=None,
         xray_tracing=False,
@@ -1120,6 +1125,7 @@ class Zappa:
             VpcConfig=vpc_config,
             DeadLetterConfig=dead_letter_config,
             Environment={"Variables": aws_environment_variables},
+            Architectures=[architecture],
             KMSKeyArn=aws_kms_key_arn,
             TracingConfig={"Mode": "Active" if self.xray_tracing else "PassThrough"},
             Layers=layers,
@@ -1180,6 +1186,7 @@ class Zappa:
         local_zip=None,
         num_revisions=None,
         concurrency=None,
+        architecture="x86_64",
         docker_image_uri=None,
     ):
         """
@@ -1189,7 +1196,11 @@ class Zappa:
         """
         print("Updating Lambda function code..")
 
-        kwargs = dict(FunctionName=function_name, Publish=publish)
+        kwargs = dict(
+            FunctionName=function_name,
+            Publish=publish,
+            Architectures=[architecture],
+        )
         if docker_image_uri:
             kwargs["ImageUri"] = docker_image_uri
         elif local_zip:
